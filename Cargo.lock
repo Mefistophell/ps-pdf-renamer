@@ -493,6 +493,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91409674c628d07a6b4b79cc877c6b63ba5ccbfbadddd77ca822f55069ed1bd4"
 
 [[package]]
+name = "payslip-renamer"
+version = "0.1.0"
+dependencies = [
+ "lopdf 0.27.0",
+ "pdf",
+ "pdf-extract",
+ "regex",
+]
+
+[[package]]
 name = "pdf"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -534,16 +544,6 @@ dependencies = [
  "postscript",
  "type1-encoding-parser",
  "unicode-normalization",
-]
-
-[[package]]
-name = "pdf-reader"
-version = "0.1.0"
-dependencies = [
- "lopdf 0.27.0",
- "pdf",
- "pdf-extract",
- "regex",
 ]
 
 [[package]]

@@ -1,3 +1,4 @@
+use std::error::Error;
 use pdf::file::File;
 use regex::Regex;
 use std::fs;
@@ -17,7 +18,7 @@ fn main() {
 
     for dir in dirs {
         if let Some(file_name) = dir.unwrap().file_name().to_str() {
-            let file_path = FileObject::new(DIR_NAME, file_name, None)
+            let file_path = FileObject::new(&DIR_NAME, file_name, None)
                 .get_file_path();
 
             if let Some(file_extension) = file_path.extension() {
@@ -25,41 +26,49 @@ fn main() {
             }
 
             println!("opening file: {:?}", &file_path);
-            let file: File<Vec<u8>> = File::open(&file_path).unwrap();
 
-            if let Some(new_file_name) = get_new_file_name(&file) {
-                let new_file_path = FileObject::new(DIR_NAME, &new_file_name, Some(FILE_EXTENSION))
-                    .get_file_path();
-
-                rename(&file_path, &new_file_path);
-            } else {
-                println!("skipping the file: {:?}", &file_path);
+            match get_new_file_path(&file_path) {
+                Ok(new_file_path) => {
+                    rename(&file_path, &new_file_path);
+                }
+                Err(_) => {
+                    println!("skipping the file: {:?}", &file_path);
+                }
             }
         }
+    }
+}
+
+fn get_new_file_path(file_path: &PathBuf) -> Result<PathBuf, Box<dyn Error>> {
+    let file: File<Vec<u8>> = File::open(&file_path)?;
+    if let Some(new_file_name) = get_new_file_name(&file) {
+        let new_file_path = FileObject::new(DIR_NAME, &new_file_name, Some(&FILE_EXTENSION))
+            .get_file_path();
+        Ok(new_file_path)
+    } else {
+        Err("Unsatisfied file type".into())
     }
 }
 
 fn rename(old_file_path: &PathBuf, new_file_path: &PathBuf) {
     fs::rename(old_file_path, new_file_path).unwrap();
-    println!("File {} has been renamed to {:?}", old_file_path.to_str().unwrap(), new_file_path.to_str().unwrap());
+    println!("File {:?} has been renamed to {:?}", old_file_path, new_file_path);
 }
 
 fn get_new_file_name(file: &File<Vec<u8>>) -> Option<String> {
-    let mut res = String::new();
     for page in file.pages() {
         let page = page.unwrap();
 
         if let Some(content) = &page.contents {
-            let primitives = PrimitiveParser::get_primitives(&content.operations, || println!("1"));
+            let string_iter = PrimitiveParser::parse(&content);
 
-            for primitive in primitives {
-                let string = PrimitiveParser::parse_to_string(primitive);
+            for string in string_iter {
                 let reg_ex = Regex::new(r"@boozt.com").unwrap();
                 if reg_ex.is_match(&string) {
-                    res.push_str(&string)
+                    return Some(string);
                 }
             }
         }
     }
-    if res != "" { Some(res) } else { None }
+    None
 }

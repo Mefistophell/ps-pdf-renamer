@@ -1,52 +1,45 @@
-use pdf::content::Operation;
+use pdf::content::{Content, Operation};
 use pdf::primitive::Primitive;
 
 #[derive(Debug, Clone)]
-pub struct PrimitiveParser<'src, F>
-    where F: FnMut()
-{
-    operations: std::slice::Iter<'src, Operation>,
-    extractor: F,
+pub struct PrimitiveParser<'a> {
+    operations: std::slice::Iter<'a, Operation>,
 }
 
-impl<'src, F> PrimitiveParser<'src, F>
-    where F: FnMut() {
-    pub fn get_primitives(operations: &[Operation], extractor: F) -> impl Iterator<Item=Vec<&[Primitive]>>
-        where F: FnMut()
-    {
+impl<'a> PrimitiveParser<'a> {
+    pub fn parse(content: &'a Content) -> impl Iterator<Item=String> + 'a {
         PrimitiveParser {
-            operations: operations.iter(),
-            extractor,
+            operations: content.operations.iter(),
         }
     }
 
-    pub fn parse_to_string(primitives: Vec<&[Primitive]>) -> String {
-        let mut text: Vec<String> = Vec::new();
+    fn retrieve_string() -> fn(&Primitive) -> String {
+        |primitive: &Primitive| {
+            let mut string = String::new();
+            let primitives = primitive.as_array().unwrap();
 
-        for &primitive in primitives.iter() {
-            for obj in primitive.iter() {
-                if let Primitive::String(pdf_string) = obj {
-                    if let Some(string) = pdf_string.clone().into_string().ok() {
-                        text.push(string);
+            for primitive in primitives.iter() {
+                if let Primitive::String(pdf_string) = primitive {
+                    if let Some(symbol) = pdf_string.clone().into_string().ok() {
+                        string.push_str(&symbol);
                     }
                 }
             }
+
+            return string;
         }
-        text.join("")
     }
 }
 
-impl<'src, F> Iterator for PrimitiveParser<'src, F>
-    where F: FnMut()
-{
-    type Item = Vec<&'src [Primitive]>;
+impl Iterator for PrimitiveParser<'_> {
+    type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(Operation { operator, operands }) = self.operations.next() {
             if let ("TJ", _primitives) = (operator.as_str(), operands.as_slice()) {
                 return Some(_primitives
                     .into_iter()
-                    .map(|primitive| primitive.as_array().unwrap())
+                    .map(PrimitiveParser::retrieve_string())
                     .collect::<Self::Item>());
             }
         }

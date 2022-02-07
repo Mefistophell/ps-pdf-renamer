@@ -1,4 +1,5 @@
-/pdf
+/pdf/*
 /pdfs
 /target
 .idea
+.DS_Store
